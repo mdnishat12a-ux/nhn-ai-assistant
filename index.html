@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080d1d">
+<title>NHN AI Assistant</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080d1d;color:#f4f7ff;font-family:Arial,"Noto Sans Bengali",sans-serif}
+header{text-align:center;padding:25px 12px 16px}
+.logo{width:75px;height:75px;margin:auto;border-radius:24px;display:grid;place-items:center;font-size:35px;background:linear-gradient(135deg,#426bff,#b34cff);box-shadow:0 0 35px #655aff55}
+h2{margin:14px 0 5px}
+.sub{color:#9eacc9;font-size:14px}
+#chat{height:52vh;overflow:auto;padding:16px}
+.msg{padding:12px 15px;margin:10px 0;border-radius:16px;max-width:90%;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.bot{background:#17213a;border:1px solid #293757}
+.me{background:#394ed0;margin-left:auto}
+.controls{position:sticky;bottom:0;background:#080d1d;padding:12px}
+.inputrow{display:flex;gap:8px}
+input{min-width:0;flex:1;background:#121c32;color:white;border:1px solid #344363;border-radius:14px;padding:14px;font-size:16px}
+button{border:0;border-radius:14px;padding:12px;background:#5266ff;color:white;font-size:15px}
+.mic{width:100%;margin-top:10px;background:#202b48}
+.note{text-align:center;font-size:12px;color:#9eacc9;padding:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">✦</div>
+  <h2>NHN AI Assistant</h2>
+  <div class="sub">তোমার বাংলা AI সহকারী</div>
+</header>
+
+<div id="chat">
+  <div class="msg bot">আসসালামু আলাইকুম! আমি NHN AI Assistant।
+
+আমাকে বাংলায় লিখে অথবা মাইক্রোফোনে নির্দেশ দাও।
+
+যেমন: “এখন কয়টা বাজে?” অথবা “YouTube খোলো”।</div>
+</div>
+
+<div class="controls">
+  <div class="inputrow">
+    <input id="prompt" placeholder="এখানে লিখে বলো..." />
+    <button onclick="sendMsg()">পাঠাও</button>
+  </div>
+  <button class="mic" onclick="listen()">🎙️ কথা বলে নির্দেশ দাও</button>
+  <div class="inputrow" style="margin-top:8px">
+    <button style="flex:1" onclick="getWeather()">🌦️ আবহাওয়া</button>
+    <button style="flex:1" onclick="getPlayer()">🎮 Free Fire UID</button>
+  </div>
+  <div class="note" id="status">ভয়েস ব্যবহারের জন্য মাইক্রোফোন অনুমতি লাগতে পারে</div>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("prompt");
+const statusText = document.getElementById("status");
+
+function addMessage(text, who="bot") {
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "bn-BD";
+  utterance.rate = 1;
+  speechSynthesis.speak(utterance);
+}
+
+function weatherDescription(code) {
+  const map = {
+    0:"পরিষ্কার আকাশ",1:"প্রধানত পরিষ্কার",2:"আংশিক মেঘলা",3:"মেঘলা",
+    45:"কুয়াশা",48:"জমাট কুয়াশা",51:"হালকা গুঁড়ি গুঁড়ি বৃষ্টি",
+    53:"মাঝারি গুঁড়ি গুঁড়ি বৃষ্টি",55:"ঘন গুঁড়ি গুঁড়ি বৃষ্টি",
+    61:"হালকা বৃষ্টি",63:"মাঝারি বৃষ্টি",65:"ভারী বৃষ্টি",
+    71:"হালকা তুষারপাত",80:"বৃষ্টির ঝাপটা",81:"মাঝারি বৃষ্টির ঝাপটা",
+    82:"ভারী বৃষ্টির ঝাপটা",95:"বজ্রঝড়"
+  };
+  return map[code] || ("আবহাওয়ার কোড " + code);
+}
+
+async function getWeather() {
+  statusText.textContent = "ঢাকার আবহাওয়া আনা হচ্ছে...";
+  try {
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=23.8103&longitude=90.4125&current=temperature_2m,rain,weather_code,is_day&timezone=auto";
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("Weather API error");
+    const d = await r.json();
+    const c = d.current;
+    const answer = `ঢাকার বর্তমান আবহাওয়া:\nতাপমাত্রা: ${c.temperature_2m}°C\nঅবস্থা: ${weatherDescription(c.weather_code)}\nবৃষ্টি: ${c.rain} mm\n${c.is_day ? "এখন দিন" : "এখন রাত"}।`;
+    addMessage(answer);
+    speak(answer);
+    statusText.textContent = "আবহাওয়ার তথ্য পাওয়া গেছে";
+  } catch (e) {
+    addMessage("আবহাওয়ার তথ্য আনা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করো।");
+    statusText.textContent = "আবহাওয়া API সংযোগ ব্যর্থ";
+  }
+}
+
+async function getPlayer() {
+  const uid = prompt("Free Fire Player UID লিখো:", "8674177274");
+  if (!uid) return;
+  if (!/^\\d{5,20}$/.test(uid.trim())) {
+    addMessage("সঠিক সংখ্যার UID লিখো।");
+    return;
+  }
+  statusText.textContent = "Player তথ্য আনা হচ্ছে...";
+  try {
+    const url = "https://auraffxserverinfocheckerapi.onrender.com/api/player?uid=" + encodeURIComponent(uid.trim());
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("Player API error");
+    const d = await r.json();
+    const answer = "Free Fire API-এর ফলাফল:\\n" + JSON.stringify(d, null, 2);
+    addMessage(answer);
+    speak("Free Fire প্লেয়ারের তথ্য পাওয়া গেছে। বিস্তারিত স্ক্রিনে দেখো।");
+    statusText.textContent = "Player তথ্য পাওয়া গেছে";
+  } catch (e) {
+    addMessage("Player API থেকে তথ্য আনা যায়নি। সার্ভার বন্ধ, অনুরোধ সীমিত, অথবা ব্রাউজার সংযোগের বাধা হতে পারে।");
+    statusText.textContent = "Player API সংযোগ ব্যর্থ";
+  }
+}
+
+async function sendMsg() {
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  addMessage(text, "me");
+
+  const q = text.toLowerCase();
+  let answer = "";
+
+  if (q.includes("আবহাওয়া") || q.includes("weather") || q.includes("তাপমাত্রা")) {
+    await getWeather();
+    return;
+  } else if (q.includes("free fire") || q.includes("ফ্রি ফায়ার") || q.includes("uid")) {
+    getPlayer();
+    return;
+  } else if (q.includes("কয়টা বাজে") || q.includes("সময় বল")) {
+    answer = "এখন সময় " + new Date().toLocaleTimeString("bn-BD", {hour:"numeric", minute:"2-digit"});
+  } else if (q.includes("youtube")) {
+    answer = "YouTube খোলার চেষ্টা করছি।";
+    addMessage(answer); speak(answer);
+    window.open("https://www.youtube.com/", "_blank");
+    return;
+  } else if (q.includes("গুগল খোলো") || q.includes("google খোলো")) {
+    answer = "Google খুলছি।";
+    addMessage(answer); speak(answer);
+    window.open("https://www.google.com/", "_blank");
+    return;
+  } else if (q.includes("অ্যালার্ম")) {
+    answer = "অ্যালার্ম সেট করতে ফোনের Clock অ্যাপ খুলে সময় নির্ধারণ করো। এই ওয়েব সংস্করণ নিজে থেকে সিস্টেম অ্যালার্ম সেট করতে পারে না।";
+  } else {
+    statusText.textContent = "AI-এর সঙ্গে সংযোগ খোঁজা হচ্ছে...";
+    try {
+      // Render-এ ব্যাকএন্ড প্রকাশ করার পর নিচের URL-এ নিজের backend URL বসাও।
+      // উদাহরণ: https://your-nhn-ai-backend.onrender.com/api/chat
+      const BACKEND_CHAT_URL = "https://YOUR-BACKEND-NAME.onrender.com/api/chat";
+      if (BACKEND_CHAT_URL.includes("YOUR-BACKEND-NAME")) {
+        throw new Error("Backend URL not configured");
+      }
+      const response = await fetch(BACKEND_CHAT_URL, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({message: text})
+      });
+      if (!response.ok) throw new Error("AI endpoint unavailable");
+      const data = await response.json();
+      answer = data.reply;
+      if (typeof answer !== "string" || !answer) throw new Error("Invalid response");
+    } catch (e) {
+      answer = "অনলাইন AI-তে সংযোগ করা যায়নি। ব্যাকএন্ড URL, Render deployment এবং AI provider-এর server-side API key পরীক্ষা করো।";
+    }
+  }
+
+  addMessage(answer);
+  speak(answer);
+  statusText.textContent = "প্রস্তুত";
+}
+
+function listen() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    statusText.textContent = "এই ব্রাউজারে ভয়েস সুবিধা নেই। Chrome-এ আবার চেষ্টা করো।";
+    return;
+  }
+  const rec = new SR();
+  rec.lang = "bn-BD";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.onstart = () => statusText.textContent = "শুনছি... বলো";
+  rec.onresult = event => {
+    input.value = event.results[0][0].transcript;
+    sendMsg();
+  };
+  rec.onerror = () => statusText.textContent = "ভয়েস কাজ করেনি। মাইক্রোফোন অনুমতি ও ইন্টারনেট পরীক্ষা করো।";
+  rec.onend = () => {
+    if (statusText.textContent === "শুনছি... বলো") statusText.textContent = "প্রস্তুত";
+  };
+  rec.start();
+}
+
+input.addEventListener("keydown", event => {
+  if (event.key === "Enter") sendMsg();
+});
+</script>
+</body>
+</html>
